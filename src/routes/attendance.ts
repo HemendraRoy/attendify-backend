@@ -35,6 +35,7 @@ router.post('/sessions/start', requireRole('TEACHER'), asyncHandler(async (req, 
   res.status(201).json({
     session,
     bleToken: rawToken,
+    code: rawToken,
     ble: { serviceUUID: '7d9d5b6d-b5f6-4f7a-8f07-a4fae2d9d0a1', characteristicUUID: 'd19439e4-0b6f-40b4-9af9-c77e38cc9b77' }
   });
 }));
@@ -74,15 +75,24 @@ router.get('/classes/:classId/current', requireRole('TEACHER'), asyncHandler(asy
 router.post('/mark', requireRole('STUDENT'), asyncHandler(async (req, res) => {
   const input = z.object({
     classId: z.string().min(1),
-    bleToken: z.string().trim().min(16),
+    bleToken: z.string().trim().min(4),
     ultrasoundVerified: z.boolean().optional()
   }).parse(req.body);
 
-  const session = await prisma.attendanceSession.findUnique({
-    where: { tokenHash: hashSessionToken(input.bleToken) },
+  const cleanToken = input.bleToken.trim();
+  const hashUpper = hashSessionToken(cleanToken);
+
+  let session = await prisma.attendanceSession.findFirst({
+    where: {
+      OR: [
+        { tokenHash: hashUpper },
+        { tokenHash: hashSessionToken(cleanToken) }
+      ],
+      classId: input.classId
+    },
     include: { class: true }
   });
-  if (!session || session.classId !== input.classId) return res.status(404).json({ message: 'No matching active session' });
+  if (!session || session.classId !== input.classId) return res.status(404).json({ message: 'No matching active session for this code' });
   if (session.endedAt || session.expiresAt <= new Date()) return res.status(410).json({ message: 'Attendance session has expired' });
 
   const membership = await prisma.classMembership.findUnique({
