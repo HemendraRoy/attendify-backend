@@ -72,27 +72,72 @@ router.get('/classes/:classId/current', requireRole('TEACHER'), asyncHandler(asy
   res.json({ session: { id: session.id, classId: session.classId, expiresAt: session.expiresAt }, attendance });
 }));
 
+router.get('/classes/:classId/active', requireRole('STUDENT'), asyncHandler(async (req, res) => {
+  const classId = z.string().min(1).parse(req.params.classId);
+
+  const membership = await prisma.classMembership.findUnique({
+    where: { classId_studentId: { classId, studentId: req.user!.id } }
+  });
+  if (!membership || membership.status !== 'ACCEPTED') {
+    return res.status(403).json({ message: 'You must be accepted into this class first' });
+  }
+
+  const session = await prisma.attendanceSession.findFirst({
+    where: { classId, endedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: 'desc' }
+  });
+  if (!session) return res.json({ active: false, session: null });
+
+  const alreadyMarked = await prisma.attendance.findUnique({
+    where: { sessionId_studentId: { sessionId: session.id, studentId: req.user!.id } }
+  });
+
+  res.json({
+    active: true,
+    sessionId: session.id,
+    alreadyMarked: !!alreadyMarked,
+    expiresAt: session.expiresAt
+  });
+}));
+
 router.post('/mark', requireRole('STUDENT'), asyncHandler(async (req, res) => {
   const input = z.object({
     classId: z.string().min(1),
-    bleToken: z.string().trim().min(4),
+    bleToken: z.string().trim().min(4).optional(),
+    sessionId: z.string().trim().min(1).optional(),
     ultrasoundVerified: z.boolean().optional()
   }).parse(req.body);
 
-  const cleanToken = input.bleToken.trim();
-  const hashUpper = hashSessionToken(cleanToken);
+  let session = null;
+  if (input.bleToken) {
+    const cleanToken = input.bleToken.trim();
+    const hashUpper = hashSessionToken(cleanToken);
+    session = await prisma.attendanceSession.findFirst({
+      where: {
+        OR: [
+          { tokenHash: hashUpper },
+          { tokenHash: hashSessionToken(cleanToken) }
+        ],
+        classId: input.classId
+      },
+      include: { class: true }
+    });
+  }
 
-  let session = await prisma.attendanceSession.findFirst({
-    where: {
-      OR: [
-        { tokenHash: hashUpper },
-        { tokenHash: hashSessionToken(cleanToken) }
-      ],
-      classId: input.classId
-    },
-    include: { class: true }
-  });
-  if (!session || session.classId !== input.classId) return res.status(404).json({ message: 'No matching active session for this code' });
+  if (!session && (input.sessionId || input.ultrasoundVerified)) {
+    session = await prisma.attendanceSession.findFirst({
+      where: {
+        ...(input.sessionId ? { id: input.sessionId } : {}),
+        classId: input.classId,
+        endedAt: null,
+        expiresAt: { gt: new Date() }
+      },
+      include: { class: true },
+      orderBy: { createdAt: 'desc' }
+    });
+  }
+
+  if (!session || session.classId !== input.classId) return res.status(404).json({ message: 'No matching active session for this class' });
   if (session.endedAt || session.expiresAt <= new Date()) return res.status(410).json({ message: 'Attendance session has expired' });
 
   const membership = await prisma.classMembership.findUnique({
