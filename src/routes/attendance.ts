@@ -72,6 +72,61 @@ router.get('/classes/:classId/current', requireRole('TEACHER'), asyncHandler(asy
   res.json({ session: { id: session.id, classId: session.classId, expiresAt: session.expiresAt }, attendance });
 }));
 
+router.get('/classes/:classId/history', requireRole('TEACHER'), asyncHandler(async (req, res) => {
+  const classId = z.string().min(1).parse(req.params.classId);
+
+  const cls = await prisma.class.findFirst({
+    where: { id: classId, teacherId: req.user!.id },
+    include: {
+      memberships: {
+        where: { status: 'ACCEPTED' },
+        include: { student: { select: { id: true, name: true, email: true } } }
+      }
+    }
+  });
+  if (!cls) return res.status(404).json({ message: 'Class not found' });
+
+  const enrolledStudents = cls.memberships.map((m) => m.student);
+
+  const sessions = await prisma.attendanceSession.findMany({
+    where: { classId: cls.id },
+    include: {
+      attendance: {
+        include: { student: { select: { id: true, name: true, email: true } } }
+      }
+    },
+    orderBy: { createdAt: 'desc' },
+    take: 50
+  });
+
+  const formattedSessions = sessions.map((s) => {
+    const presentMap = new Map(s.attendance.map((a) => [a.studentId, a]));
+
+    const records = enrolledStudents.map((st) => {
+      const att = presentMap.get(st.id);
+      return {
+        studentId: st.id,
+        name: st.name,
+        email: st.email,
+        status: att ? 'PRESENT' : 'ABSENT',
+        markedAt: att ? att.markedAt : null
+      };
+    });
+
+    return {
+      id: s.id,
+      createdAt: s.createdAt,
+      endedAt: s.endedAt,
+      expiresAt: s.expiresAt,
+      presentCount: s.attendance.length,
+      totalEnrolled: enrolledStudents.length,
+      records
+    };
+  });
+
+  res.json({ sessions: formattedSessions });
+}));
+
 router.get('/classes/:classId/active', requireRole('STUDENT'), asyncHandler(async (req, res) => {
   const classId = z.string().min(1).parse(req.params.classId);
 
