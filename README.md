@@ -175,7 +175,7 @@ The backend validates the attendance token in a server-controlled way:
 
 The repository includes ready-to-deploy Render configuration in `render.yaml`.
 
-- **Live Production Endpoint:** `https://attendify-rebuild-backend.onrender.com`
+- **Live Production Endpoint:** `https://attendify-rebuild-backend-l9r4.onrender.com`
 - **Runtime:** Render Web Service (Node.js 20.x)
 - **Database:** Neon PostgreSQL (connection pooled via Prisma pg adapter)
 - **Build Command:** `npm ci && npm run build`
