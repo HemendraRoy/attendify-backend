@@ -103,41 +103,24 @@ router.get('/classes/:classId/active', requireRole('STUDENT'), asyncHandler(asyn
 router.post('/mark', requireRole('STUDENT'), asyncHandler(async (req, res) => {
   const input = z.object({
     classId: z.string().min(1),
-    bleToken: z.string().trim().min(4).optional(),
-    sessionId: z.string().trim().min(1).optional(),
+    bleToken: z.string().trim().min(4),
     ultrasoundVerified: z.boolean().optional()
   }).parse(req.body);
 
-  let session = null;
-  if (input.bleToken) {
-    const cleanToken = input.bleToken.trim();
-    const hashUpper = hashSessionToken(cleanToken);
-    session = await prisma.attendanceSession.findFirst({
-      where: {
-        OR: [
-          { tokenHash: hashUpper },
-          { tokenHash: hashSessionToken(cleanToken) }
-        ],
-        classId: input.classId
-      },
-      include: { class: true }
-    });
-  }
+  const cleanToken = input.bleToken.trim();
+  const hashUpper = hashSessionToken(cleanToken);
+  const session = await prisma.attendanceSession.findFirst({
+    where: {
+      OR: [
+        { tokenHash: hashUpper },
+        { tokenHash: hashSessionToken(cleanToken) }
+      ],
+      classId: input.classId
+    },
+    include: { class: true }
+  });
 
-  if (!session && (input.sessionId || input.ultrasoundVerified)) {
-    session = await prisma.attendanceSession.findFirst({
-      where: {
-        ...(input.sessionId ? { id: input.sessionId } : {}),
-        classId: input.classId,
-        endedAt: null,
-        expiresAt: { gt: new Date() }
-      },
-      include: { class: true },
-      orderBy: { createdAt: 'desc' }
-    });
-  }
-
-  if (!session || session.classId !== input.classId) return res.status(404).json({ message: 'No matching active session for this class' });
+  if (!session || session.classId !== input.classId) return res.status(404).json({ message: 'No matching active session for this attendance code' });
   if (session.endedAt || session.expiresAt <= new Date()) return res.status(410).json({ message: 'Attendance session has expired' });
 
   const membership = await prisma.classMembership.findUnique({
