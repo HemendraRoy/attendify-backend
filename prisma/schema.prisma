@@ -1,0 +1,90 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  TEACHER
+  STUDENT
+}
+
+enum MembershipStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+}
+
+model User {
+  id           String              @id @default(cuid())
+  name         String
+  email        String              @unique
+  passwordHash String
+  role         Role
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+  classes      Class[]             @relation("TeacherClasses")
+  memberships  ClassMembership[]   @relation("StudentMemberships")
+  sessions     AttendanceSession[] @relation("TeacherSessions")
+  attendance   Attendance[]        @relation("StudentAttendance")
+}
+
+model Class {
+  id          String              @id @default(cuid())
+  name        String
+  subject     String?
+  joinCode    String              @unique
+  schedule    String?
+  teacherId   String
+  teacher     User                @relation("TeacherClasses", fields: [teacherId], references: [id], onDelete: Cascade)
+  memberships ClassMembership[]
+  sessions    AttendanceSession[]
+  createdAt   DateTime            @default(now())
+
+  @@index([teacherId])
+}
+
+model ClassMembership {
+  id         String           @id @default(cuid())
+  classId    String
+  studentId  String
+  status     MembershipStatus @default(PENDING)
+  requestedAt DateTime        @default(now())
+  respondedAt DateTime?
+  class      Class            @relation(fields: [classId], references: [id], onDelete: Cascade)
+  student    User             @relation("StudentMemberships", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([classId, studentId])
+  @@index([studentId])
+}
+
+model AttendanceSession {
+  id         String        @id @default(cuid())
+  classId    String
+  teacherId  String
+  tokenHash  String        @unique
+  expiresAt  DateTime
+  createdAt  DateTime      @default(now())
+  endedAt    DateTime?
+  class      Class         @relation(fields: [classId], references: [id], onDelete: Cascade)
+  teacher    User          @relation("TeacherSessions", fields: [teacherId], references: [id], onDelete: Cascade)
+  attendance Attendance[]
+
+  @@index([classId, expiresAt])
+  @@index([teacherId, expiresAt])
+}
+
+model Attendance {
+  id         String            @id @default(cuid())
+  sessionId  String
+  studentId  String
+  markedAt   DateTime          @default(now())
+  session    AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student    User              @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, studentId])
+  @@index([studentId, markedAt])
+}
