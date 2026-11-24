@@ -4,6 +4,7 @@ import { prisma } from '../lib/prisma.js';
 import { requireAuth, requireRole } from '../middleware/auth.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { createSessionToken, hashSessionToken } from '../utils/security.js';
+import { acousticBroadcast, verifyAcousticToken } from '../utils/acoustic.js';
 
 const router = Router();
 router.use(requireAuth);
@@ -35,6 +36,7 @@ router.post('/sessions/start', requireRole('TEACHER'), asyncHandler(async (req, 
   res.status(201).json({
     session,
     bleToken: rawToken,
+    acoustic: acousticBroadcast(session),
     code: rawToken,
     ble: { serviceUUID: '7d9d5b6d-b5f6-4f7a-8f07-a4fae2d9d0a1', characteristicUUID: 'd19439e4-0b6f-40b4-9af9-c77e38cc9b77' }
   });
@@ -69,7 +71,7 @@ router.get('/classes/:classId/current', requireRole('TEACHER'), asyncHandler(asy
     include: { student: { select: { id: true, name: true, email: true } } },
     orderBy: { markedAt: 'asc' }
   });
-  res.json({ session: { id: session.id, classId: session.classId, expiresAt: session.expiresAt }, attendance });
+  res.json({ session: { id: session.id, classId: session.classId, expiresAt: session.expiresAt }, acoustic: acousticBroadcast(session), attendance });
 }));
 
 router.get('/classes/:classId/history', requireRole('TEACHER'), asyncHandler(async (req, res) => {
@@ -159,41 +161,22 @@ router.post('/mark', requireRole('STUDENT'), asyncHandler(async (req, res) => {
   const input = z.object({
     classId: z.string().min(1),
     bleToken: z.string().trim().min(4).optional(),
-    sessionId: z.string().min(1).optional(),
-    ultrasoundVerified: z.boolean().optional()
-  }).refine((data) => data.bleToken || data.sessionId, {
-    message: 'Either bleToken or sessionId is required'
+    sessionId: z.string().min(1),
+    acousticToken: z.string().regex(/^[a-f0-9]{16}$/i, 'A decoded chirp-v1 acoustic token is required')
   }).parse(req.body);
 
-  let session: (typeof prisma.attendanceSession extends { findFirst: (...args: any[]) => Promise<infer R> } ? R : any) = null;
-
-  if (input.bleToken) {
-    const cleanToken = input.bleToken.trim();
-    const hashUpper = hashSessionToken(cleanToken);
-    session = await prisma.attendanceSession.findFirst({
-      where: {
-        OR: [
-          { tokenHash: hashUpper },
-          { tokenHash: hashSessionToken(cleanToken) }
-        ],
-        classId: input.classId
-      },
-      include: { class: true }
-    });
-  } else if (input.sessionId) {
-    session = await prisma.attendanceSession.findFirst({
-      where: {
-        id: input.sessionId,
-        classId: input.classId,
-        endedAt: null,
-        expiresAt: { gt: new Date() }
-      },
-      include: { class: true }
-    });
-  }
-
-  if (!session || session.classId !== input.classId) return res.status(404).json({ message: 'No matching active session for this class' });
+  const session = await prisma.attendanceSession.findFirst({
+    where: { id: input.sessionId, classId: input.classId },
+    include: { class: true }
+  });
+  if (!session) return res.status(404).json({ message: 'No matching attendance session for this class' });
   if (session.endedAt || session.expiresAt <= new Date()) return res.status(410).json({ message: 'Attendance session has expired' });
+  if (input.bleToken && hashSessionToken(input.bleToken) !== session.tokenHash) {
+    return res.status(403).json({ message: 'The BLE token does not belong to the selected attendance session' });
+  }
+  if (!verifyAcousticToken(session, input.acousticToken)) {
+    return res.status(403).json({ message: 'The classroom sound challenge is invalid or expired. Please scan again.' });
+  }
 
   const membership = await prisma.classMembership.findUnique({
     where: { classId_studentId: { classId: session.classId, studentId: req.user!.id } }
@@ -208,7 +191,7 @@ router.post('/mark', requireRole('STUDENT'), asyncHandler(async (req, res) => {
     update: {}
   });
 
-  res.status(201).json({ attendance, message: 'Attendance marked successfully' });
+  res.status(201).json({ attendance, verificationMethod: input.bleToken ? 'BLE_ACOUSTIC' : 'ACOUSTIC_FALLBACK', message: 'Attendance marked successfully' });
 }));
 
 router.get('/student/history', requireRole('STUDENT'), asyncHandler(async (req, res) => {
