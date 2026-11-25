@@ -15,9 +15,14 @@ export async function createTestAttendanceRouter() {
     throw new Error('The test dashboard requires ATTENDIFY_TEST_TEACHER_ID and ATTENDIFY_TEST_STUDENT_IDS.');
   }
 
-  const [database] = await prisma.$queryRaw<{ name: string }[]>`SELECT current_database() AS name`;
-  if (database?.name !== 'attendify_test') {
-    throw new Error('The test dashboard requires a separate PostgreSQL database named attendify_test.');
+  const [database] = await prisma.$queryRaw<{ name: string; host: string | null }[]>`
+    SELECT current_database() AS name, host(inet_server_addr()) AS host
+  `;
+  const isLocalDev = database?.name === 'attendify_dev'
+    && ['127.0.0.1', '::1'].includes(database.host ?? '')
+    && ['127.0.0.1', 'localhost', '[::1]'].includes(new URL(process.env.DATABASE_URL!).hostname);
+  if (database?.name !== 'attendify_test' && !isLocalDev) {
+    throw new Error('The test dashboard requires a separate PostgreSQL database named attendify_test or a loopback attendify_dev database.');
   }
 
   const router = Router();

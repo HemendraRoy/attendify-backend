@@ -35,7 +35,7 @@ See [API.md](API.md). Existing authentication, classes/join approvals, attendanc
 
 ## Browser test attendance
 
-Run a separate development backend with a disposable PostgreSQL database named `attendify_test`. Point both database URLs at it and apply the migrations. Configure these settings on that server:
+Use a development backend with a disposable PostgreSQL database named `attendify_test` or an existing `attendify_dev` database on loopback. Use the same backend database as the phones to show their enrolled student accounts. Apply the migrations before enabling the dashboard. Configure these settings on that server:
 
 ```dotenv
 NODE_ENV=development
