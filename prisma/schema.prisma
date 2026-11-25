@@ -73,8 +73,16 @@ model AttendanceSession {
   teacher    User          @relation("TeacherSessions", fields: [teacherId], references: [id], onDelete: Cascade)
   attendance Attendance[]
 
+  devCode    DevAttendanceCode?
+
   @@index([classId, expiresAt])
   @@index([teacherId, expiresAt])
+}
+
+model DevAttendanceCode {
+  sessionId String            @id
+  code      String
+  session   AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
 }
 
 model Attendance {

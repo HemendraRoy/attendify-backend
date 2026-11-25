@@ -38,6 +38,11 @@ export type ClassMembership = Prisma.ClassMembershipModel
  */
 export type AttendanceSession = Prisma.AttendanceSessionModel
 /**
+ * Model DevAttendanceCode
+ *
+ */
+export type DevAttendanceCode = Prisma.DevAttendanceCodeModel
+/**
  * Model Attendance
  * 
  */

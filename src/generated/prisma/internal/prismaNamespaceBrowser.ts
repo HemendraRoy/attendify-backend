@@ -55,6 +55,7 @@ export const ModelName = {
   Class: 'Class',
   ClassMembership: 'ClassMembership',
   AttendanceSession: 'AttendanceSession',
+  DevAttendanceCode: 'DevAttendanceCode',
   Attendance: 'Attendance'
 } as const
 
@@ -123,6 +124,14 @@ export const AttendanceSessionScalarFieldEnum = {
 } as const
 
 export type AttendanceSessionScalarFieldEnum = (typeof AttendanceSessionScalarFieldEnum)[keyof typeof AttendanceSessionScalarFieldEnum]
+
+
+export const DevAttendanceCodeScalarFieldEnum = {
+  sessionId: 'sessionId',
+  code: 'code'
+} as const
+
+export type DevAttendanceCodeScalarFieldEnum = (typeof DevAttendanceCodeScalarFieldEnum)[keyof typeof DevAttendanceCodeScalarFieldEnum]
 
 
 export const AttendanceScalarFieldEnum = {
