@@ -123,6 +123,10 @@ test('real HTTP routes and PostgreSQL enforce the acoustic requirement on both a
     const marks = await Promise.all(Array.from({ length: 4 }, () => request(path, teacher.token, payload)));
     assert.deepEqual(marks.map(mark => mark.status).sort(), [200, 200, 200, 201]);
     assert.equal((await request('/dev/attendance/session', teacher.token)).body.students[0].marked, true);
+    const studentSession = await request(`/attendance/classes/${cls.id}/active`, dashboardStudent.token);
+    assert.equal(studentSession.body.recordedByDashboard, true);
+    assert.equal(studentSession.body.alreadyMarked, true);
+    assert.equal((await request(`/attendance/classes/${cls.id}/active`, student.token)).body.recordedByDashboard, false);
     assert.equal(await prisma.attendance.count({ where: { sessionId, studentId: dashboardStudent.id } }), 1);
   });
   await t.test('session expiry and teacher closure prevent further attendance', async () => {

@@ -67,8 +67,8 @@ export async function createTestAttendanceRouter() {
     const id = randomUUID();
     // Check session and membership in the write itself so a stale browser selection can't mark a new session.
     const [row] = await prisma.$queryRaw<{ id: string }[]>`
-      INSERT INTO "Attendance" ("id", "sessionId", "studentId")
-      SELECT ${id}, session."id", member."studentId"
+      INSERT INTO "Attendance" ("id", "sessionId", "studentId", "recordedByDashboard")
+      SELECT ${id}, session."id", member."studentId", true
       FROM "AttendanceSession" AS session
       JOIN "Class" AS class ON class."id" = session."classId"
       JOIN "ClassMembership" AS member ON member."classId" = class."id"
