@@ -9,6 +9,9 @@ import { acousticBroadcast, verifyAcousticToken } from '../utils/acoustic.js';
 const router = Router();
 router.use(requireAuth);
 
+const devAttendanceCodeEnabled = process.env.NODE_ENV === 'development'
+  && process.env.ATTENDIFY_DEV_SESSION_CODE === '1';
+
 const ttlSeconds = () => Math.max(30, Number(process.env.SESSION_TTL_SECONDS ?? 120));
 
 router.post('/sessions/start', requireRole('TEACHER'), asyncHandler(async (req, res) => {
@@ -28,6 +31,7 @@ router.post('/sessions/start', requireRole('TEACHER'), asyncHandler(async (req, 
       classId: cls.id,
       teacherId: req.user!.id,
       tokenHash: hashSessionToken(rawToken),
+      ...(devAttendanceCodeEnabled ? { devCode: { create: { code: rawToken } } } : {}),
       expiresAt
     },
     select: { id: true, classId: true, expiresAt: true, createdAt: true }
@@ -155,6 +159,44 @@ router.get('/classes/:classId/active', requireRole('STUDENT'), asyncHandler(asyn
     alreadyMarked: !!alreadyMarked,
     expiresAt: session.expiresAt
   });
+}));
+
+router.get('/classes/:classId/dev-code', requireRole('STUDENT'), asyncHandler(async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!devAttendanceCodeEnabled) {
+    return res.status(404).json({ message: 'X requires an enabled development backend.' });
+  }
+
+  const classId = z.string().min(1).parse(req.params.classId);
+  const membership = await prisma.classMembership.findUnique({
+    where: { classId_studentId: { classId, studentId: req.user!.id } },
+    select: { status: true }
+  });
+  if (membership?.status !== 'ACCEPTED') {
+    return res.status(403).json({ message: 'You must be accepted into this class first.' });
+  }
+
+  const session = await prisma.attendanceSession.findFirst({
+    where: { classId, endedAt: null, expiresAt: { gt: new Date() } },
+    orderBy: { createdAt: 'desc' },
+    select: {
+      id: true,
+      classId: true,
+      expiresAt: true,
+      endedAt: true,
+      devCode: { select: { code: true } }
+    }
+  });
+  if (!session?.devCode) {
+    return res.status(404).json({ message: 'Ask the teacher to start a new attendance session on this development backend.' });
+  }
+
+  const acoustic = acousticBroadcast(session);
+  if (!acoustic) {
+    return res.status(410).json({ message: 'The attendance session has expired. Ask the teacher to start a new session.' });
+  }
+
+  res.json({ bleToken: session.devCode.code, sessionId: session.id, acoustic });
 }));
 
 router.post('/mark', requireRole('STUDENT'), asyncHandler(async (req, res) => {
