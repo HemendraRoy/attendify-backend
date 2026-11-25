@@ -150,13 +150,15 @@ router.get('/classes/:classId/active', requireRole('STUDENT'), asyncHandler(asyn
   if (!session) return res.json({ active: false, session: null });
 
   const alreadyMarked = await prisma.attendance.findUnique({
-    where: { sessionId_studentId: { sessionId: session.id, studentId: req.user!.id } }
+    where: { sessionId_studentId: { sessionId: session.id, studentId: req.user!.id } },
+    select: { recordedByDashboard: true }
   });
 
   res.json({
     active: true,
     sessionId: session.id,
     alreadyMarked: !!alreadyMarked,
+    recordedByDashboard: alreadyMarked?.recordedByDashboard ?? false,
     expiresAt: session.expiresAt
   });
 }));
