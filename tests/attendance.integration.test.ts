@@ -19,19 +19,22 @@ test('real HTTP routes and PostgreSQL enforce the acoustic requirement on both a
   const { signAccessToken } = await import('../src/utils/security.js');
   const { acousticBroadcast, ACOUSTIC_WINDOW_MS } = await import('../src/utils/acoustic.js');
   const unique = `test-${Date.now()}`;
-  const users = await Promise.all(['teacher', 'teacher2', 'student', 'student2', 'outsider'].map(async name => {
+  const users = await Promise.all(['teacher', 'teacher2', 'student', 'student2', 'outsider', 'dashboard-student'].map(async name => {
     const user = await prisma.user.create({ data: { name, email: `${unique}-${name}@example.test`, role: name.startsWith('teacher') ? 'TEACHER' : 'STUDENT', passwordHash: 'synthetic-test-data' } });
     return { ...user, token: signAccessToken(user) };
   }));
-  const [teacher, teacher2, student, student2, outsider] = users;
+  const [teacher, teacher2, student, student2, outsider, dashboardStudent] = users;
   const cls = await prisma.class.create({ data: { name: 'Integration room A', joinCode: `${unique}-A`, teacherId: teacher.id } });
   const other = await prisma.class.create({ data: { name: 'Integration room B', joinCode: `${unique}-B`, teacherId: teacher2.id } });
-  await prisma.classMembership.createMany({ data: [student, student2].map(user => ({ classId: cls.id, studentId: user.id, status: 'ACCEPTED' as const })) });
+  await prisma.classMembership.createMany({ data: [student, student2, dashboardStudent].map(user => ({ classId: cls.id, studentId: user.id, status: 'ACCEPTED' as const })) });
   const socket = createServer(); socket.listen(0, '127.0.0.1'); await once(socket, 'listening');
   const address = socket.address(); assert.ok(address && typeof address === 'object'); const port = address.port;
   await new Promise<void>(resolve => socket.close(() => resolve()));
   const server = spawn(process.execPath, ['--import', 'tsx', 'src/server.ts'], {
-    cwd: process.cwd(), env: { ...process.env, PORT: String(port) }, stdio: ['ignore', 'pipe', 'pipe']
+    cwd: process.cwd(), env: {
+      ...process.env, PORT: String(port), NODE_ENV: 'development', ATTENDIFY_TEST_DASHBOARD: '1',
+      ATTENDIFY_TEST_TEACHER_ID: teacher.id, ATTENDIFY_TEST_STUDENT_IDS: `${dashboardStudent.id},${outsider.id}`
+    }, stdio: ['ignore', 'pipe', 'pipe']
   });
   let output = '';
   server.stdout.on('data', data => { output += data; }); server.stderr.on('data', data => { output += data; });
@@ -100,11 +103,34 @@ test('real HTTP routes and PostgreSQL enforce the acoustic requirement on both a
     assert.equal(duplicates.every(response => response.status === 201 && response.body.attendance.id === first.body.attendance.id), true);
     assert.equal(await prisma.attendance.count({ where: { sessionId } }), 2);
   });
+  await t.test('browser dashboard marks only configured, accepted test students in the teacher session', async () => {
+    const dashboard = await fetch(url + '/dev/attendance');
+    assert.equal(dashboard.status, 200);
+    assert.equal(dashboard.headers.get('cache-control'), 'no-store');
+    assert.match(await dashboard.text(), /X · Mark present/);
+
+    const path = '/dev/attendance/mark';
+    const payload = { sessionId, studentId: dashboardStudent.id };
+    assert.equal((await request(path, undefined, payload)).status, 401);
+    assert.equal((await request(path, student.token, payload)).status, 403);
+    assert.equal((await request(path, teacher2.token, payload)).status, 403);
+    assert.equal((await request(path, teacher.token, { sessionId, studentId: student.id })).status, 403);
+    assert.equal((await request(path, teacher.token, { sessionId, studentId: outsider.id })).status, 409);
+    assert.equal((await request(path, teacher.token, { ...payload, sessionId: second.body.session.id })).status, 409);
+
+    const roster = await request('/dev/attendance/session', teacher.token);
+    assert.deepEqual(roster.body.students, [{ id: dashboardStudent.id, name: dashboardStudent.name, marked: false }]);
+    const marks = await Promise.all(Array.from({ length: 4 }, () => request(path, teacher.token, payload)));
+    assert.deepEqual(marks.map(mark => mark.status).sort(), [200, 200, 200, 201]);
+    assert.equal((await request('/dev/attendance/session', teacher.token)).body.students[0].marked, true);
+    assert.equal(await prisma.attendance.count({ where: { sessionId, studentId: dashboardStudent.id } }), 1);
+  });
   await t.test('session expiry and teacher closure prevent further attendance', async () => {
     await prisma.attendanceSession.update({ where: { id: sessionId }, data: { expiresAt: new Date(Date.now() - 1) } });
     assert.equal((await request('/attendance/mark', student.token, { ...submission, bleToken })).status, 410);
     await prisma.attendanceSession.update({ where: { id: sessionId }, data: { expiresAt: new Date(Date.now() + 60_000) } });
     assert.equal((await request(`/attendance/sessions/${sessionId}/end`, teacher.token, {})).status, 200);
     assert.equal((await request('/attendance/mark', student.token, { ...submission, bleToken })).status, 410);
+    assert.equal((await request('/dev/attendance/mark', teacher.token, { sessionId, studentId: dashboardStudent.id })).status, 409);
   });
 });

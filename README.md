@@ -7,7 +7,7 @@ Express/TypeScript API with PostgreSQL and Prisma. This branch implements the `c
 - Teachers create short-lived attendance sessions for their own classes; the BLE token is stored hashed.
 - Start/current-session responses give only the owning teacher a fresh acoustic broadcast value and expiry.
 - Accepted students can discover active session metadata without learning the acoustic value.
-- Every mark requires `classId`, `sessionId`, and a decoded `acousticToken` (16 hex characters). A real `bleToken` is optional for the agreed acoustic/session fallback.
+- Every normal student check-in requires `classId`, `sessionId`, and a decoded `acousticToken` (16 hex characters). A real `bleToken` is optional for the agreed acoustic/session fallback.
 - A supplied BLE token must belong to the selected session. Acoustic values are independently HMAC-bound to class, session, and a 20-second epoch. Current/previous epochs are accepted; older and future values are rejected.
 - Class membership, teacher ownership, session end/expiry, roles and duplicate protection remain enforced. Repeated/concurrent valid submissions use the existing unique attendance constraint and idempotent upsert.
 - Responses identify `BLE_ACOUSTIC` or `ACOUSTIC_FALLBACK`. A server-session lookup never counts as BLE verification.
@@ -32,6 +32,19 @@ For a deployment, `npm run build` generates Prisma and compiles TypeScript; `npm
 ## Routes
 
 See [API.md](API.md). Existing authentication, classes/join approvals, attendance history and teacher rosters remain available. Both authentication and accepted membership are required; the acoustic fallback is not an unauthenticated attendance path.
+
+## Browser test attendance
+
+Run a separate development backend with a disposable PostgreSQL database named `attendify_test`. Point both database URLs at it and apply the migrations. Configure these settings on that server:
+
+```dotenv
+NODE_ENV=development
+ATTENDIFY_TEST_DASHBOARD=1
+ATTENDIFY_TEST_TEACHER_ID=<test teacher user ID>
+ATTENDIFY_TEST_STUDENT_IDS=<test student ID>,<another test student ID>
+```
+
+Use the teacher app against that backend to accept the test students and start a session. Open `/dev/attendance` on the same backend (for example `http://localhost:10000/dev/attendance` on the server computer), sign in as that teacher, select a test student and click **X · Mark present**. The dashboard uses the current teacher session and logs each new test check-in with the teacher, session and student IDs. It does not use the mobile X flag.
 
 ## Tests
 

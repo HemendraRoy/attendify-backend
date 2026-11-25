@@ -4,6 +4,7 @@ import cors from 'cors';
 import authRoutes from './routes/auth.js';
 import classRoutes from './routes/classes.js';
 import attendanceRoutes from './routes/attendance.js';
+import { createTestAttendanceRouter } from './routes/testAttendance.js';
 import { acousticSecret, ACOUSTIC_PROTOCOL } from './utils/acoustic.js';
 
 acousticSecret();
@@ -17,6 +18,9 @@ app.get('/health', (_req, res) => res.json({ ok: true, service: 'attendify-api',
 app.use('/auth', authRoutes);
 app.use('/classes', classRoutes);
 app.use('/attendance', attendanceRoutes);
+
+const testAttendance = await createTestAttendanceRouter();
+if (testAttendance) app.use('/dev/attendance', testAttendance);
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err && typeof err === 'object' && 'issues' in err) {
