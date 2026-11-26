@@ -27,11 +27,17 @@ npm run db:migrate
 npm run dev
 ```
 
-For a deployment, `npm run build` generates Prisma and compiles TypeScript; `npm start` applies existing migrations and starts the built server. This extension adds no database fields or migrations. `/health` returns `acousticProtocol: "chirp-v1"` for client compatibility checking.
+For a deployment, `npm run build` generates Prisma and compiles TypeScript. `npm start` applies pending migrations and starts the built server. `/health` returns `acousticProtocol: "chirp-v1"` for client compatibility checking.
 
 ## Routes
 
 See [API.md](API.md). Existing authentication, classes/join approvals, attendance history and teacher rosters remain available. Both authentication and accepted membership are required; the acoustic fallback is not an unauthenticated attendance path.
+
+### Teacher attendance dashboard
+
+Set `ATTENDIFY_TEACHER_DASHBOARD=1` in the existing Render service's **Environment** settings. Deploy this branch through the service's normal deploy flow. The start command applies the new attendance migration and the dashboard uses the service's existing database connection.
+
+Open `/teacher/attendance`, sign in with the teacher's Attendify account, and select a student from the active class roster. **X · Mark present** saves one attendance record per student and session. The backend stores the teacher's ID and the existing attendance timestamp for the browser entry. The existing attendance screens display the resulting record.
 
 ## Tests
 

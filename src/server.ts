@@ -4,6 +4,7 @@ import cors from 'cors';
 import authRoutes from './routes/auth.js';
 import classRoutes from './routes/classes.js';
 import attendanceRoutes from './routes/attendance.js';
+import { createTeacherAttendanceRouter } from './routes/teacherAttendance.js';
 import { acousticSecret, ACOUSTIC_PROTOCOL } from './utils/acoustic.js';
 
 acousticSecret();
@@ -17,6 +18,9 @@ app.get('/health', (_req, res) => res.json({ ok: true, service: 'attendify-api',
 app.use('/auth', authRoutes);
 app.use('/classes', classRoutes);
 app.use('/attendance', attendanceRoutes);
+if (process.env.ATTENDIFY_TEACHER_DASHBOARD === '1') {
+  app.use('/teacher/attendance', createTeacherAttendanceRouter());
+}
 
 app.use((err: unknown, _req: express.Request, res: express.Response, _next: express.NextFunction) => {
   if (err && typeof err === 'object' && 'issues' in err) {

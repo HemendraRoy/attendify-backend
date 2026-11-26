@@ -72,6 +72,7 @@ router.get('/classes/:classId/current', requireRole('TEACHER'), asyncHandler(asy
 
   const attendance = await prisma.attendance.findMany({
     where: { sessionId: session.id },
+    omit: { recordedByTeacherId: true },
     include: { student: { select: { id: true, name: true, email: true } } },
     orderBy: { markedAt: 'asc' }
   });
@@ -233,12 +234,15 @@ router.post('/mark', requireRole('STUDENT'), asyncHandler(async (req, res) => {
     update: {}
   });
 
-  res.status(201).json({ attendance, verificationMethod: input.bleToken ? 'BLE_ACOUSTIC' : 'ACOUSTIC_FALLBACK', message: 'Attendance marked successfully' });
+  const { recordedByTeacherId, ...scanAttendance } = attendance;
+  if (recordedByTeacherId) return res.status(409).json({ message: 'Attendance is already recorded for this session.' });
+  res.status(201).json({ attendance: scanAttendance, verificationMethod: input.bleToken ? 'BLE_ACOUSTIC' : 'ACOUSTIC_FALLBACK', message: 'Attendance marked successfully' });
 }));
 
 router.get('/student/history', requireRole('STUDENT'), asyncHandler(async (req, res) => {
   const rows = await prisma.attendance.findMany({
     where: { studentId: req.user!.id },
+    omit: { recordedByTeacherId: true },
     include: { session: { include: { class: { include: { teacher: { select: { name: true } } } } } } },
     orderBy: { markedAt: 'desc' },
     take: 100

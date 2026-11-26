@@ -24,6 +24,12 @@
 - `POST /attendance/mark` student only `{ classId, sessionId, acousticToken, bleToken? }`
 - `GET /attendance/student/history` student only
 
+When `ATTENDIFY_TEACHER_DASHBOARD=1`:
+
+- `GET /teacher/attendance` opens the browser dashboard.
+- `GET /teacher/attendance/session` returns the signed-in teacher's active session and accepted student roster.
+- `POST /teacher/attendance/mark` records one enrolled student as present with `{ sessionId, studentId }`. Only the owning teacher can use this route. An existing row is kept intact.
+
 
 ## chirp-v1 acoustic verification extension
 
