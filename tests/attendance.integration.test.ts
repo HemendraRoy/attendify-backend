@@ -32,8 +32,10 @@ test('real HTTP routes and PostgreSQL enforce the acoustic requirement on both a
   const socket = createServer(); socket.listen(0, '127.0.0.1'); await once(socket, 'listening');
   const address = socket.address(); assert.ok(address && typeof address === 'object'); const port = address.port;
   await new Promise<void>(resolve => socket.close(() => resolve()));
+  const serverEnv: NodeJS.ProcessEnv = { ...process.env, PORT: String(port), NODE_ENV: 'production' };
+  delete serverEnv.ATTENDIFY_TEACHER_DASHBOARD;
   const server = spawn(process.execPath, ['--import', 'tsx', 'src/server.ts'], {
-    cwd: process.cwd(), env: { ...process.env, PORT: String(port), ATTENDIFY_TEACHER_DASHBOARD: '1' }, stdio: ['ignore', 'pipe', 'pipe']
+    cwd: process.cwd(), env: serverEnv, stdio: ['ignore', 'pipe', 'pipe']
   });
   let output = '';
   server.stdout.on('data', data => { output += data; }); server.stderr.on('data', data => { output += data; });

@@ -35,7 +35,7 @@ See [API.md](API.md). Existing authentication, classes/join approvals, attendanc
 
 ### Teacher attendance dashboard
 
-Set `ATTENDIFY_TEACHER_DASHBOARD=1` in the existing Render service's **Environment** settings. Deploy this branch through the service's normal deploy flow. The start command applies the new attendance migration and the dashboard uses the service's existing database connection.
+The dashboard is enabled by default. Deploy the backend through the existing Render service's normal deploy flow. The start command applies pending migrations, and the dashboard uses the service's existing database connection. Set `ATTENDIFY_TEACHER_DASHBOARD=0` only if you need to disable the page.
 
 Open `/teacher/attendance`, sign in with the teacher's Attendify account, and select a student from the active class roster. **X · Mark present** saves one attendance record per student and session. The backend stores the teacher's ID and the existing attendance timestamp for the browser entry. The existing attendance screens display the resulting record.
 
