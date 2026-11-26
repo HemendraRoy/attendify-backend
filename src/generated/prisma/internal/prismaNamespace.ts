@@ -401,7 +401,6 @@ export const ModelName = {
   Class: 'Class',
   ClassMembership: 'ClassMembership',
   AttendanceSession: 'AttendanceSession',
-  DevAttendanceCode: 'DevAttendanceCode',
   Attendance: 'Attendance'
 } as const
 
@@ -418,7 +417,7 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
     omit: GlobalOmitOptions
   }
   meta: {
-    modelProps: "user" | "class" | "classMembership" | "attendanceSession" | "devAttendanceCode" | "attendance"
+    modelProps: "user" | "class" | "classMembership" | "attendanceSession" | "attendance"
     txIsolationLevel: TransactionIsolationLevel
   }
   model: {
@@ -718,80 +717,6 @@ export type TypeMap<ExtArgs extends runtime.Types.Extensions.InternalArgs = runt
         }
       }
     }
-    DevAttendanceCode: {
-      payload: Prisma.$DevAttendanceCodePayload<ExtArgs>
-      fields: Prisma.DevAttendanceCodeFieldRefs
-      operations: {
-        findUnique: {
-          args: Prisma.DevAttendanceCodeFindUniqueArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload> | null
-        }
-        findUniqueOrThrow: {
-          args: Prisma.DevAttendanceCodeFindUniqueOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload>
-        }
-        findFirst: {
-          args: Prisma.DevAttendanceCodeFindFirstArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload> | null
-        }
-        findFirstOrThrow: {
-          args: Prisma.DevAttendanceCodeFindFirstOrThrowArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload>
-        }
-        findMany: {
-          args: Prisma.DevAttendanceCodeFindManyArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload>[]
-        }
-        create: {
-          args: Prisma.DevAttendanceCodeCreateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload>
-        }
-        createMany: {
-          args: Prisma.DevAttendanceCodeCreateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        createManyAndReturn: {
-          args: Prisma.DevAttendanceCodeCreateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload>[]
-        }
-        delete: {
-          args: Prisma.DevAttendanceCodeDeleteArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload>
-        }
-        update: {
-          args: Prisma.DevAttendanceCodeUpdateArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload>
-        }
-        deleteMany: {
-          args: Prisma.DevAttendanceCodeDeleteManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateMany: {
-          args: Prisma.DevAttendanceCodeUpdateManyArgs<ExtArgs>
-          result: BatchPayload
-        }
-        updateManyAndReturn: {
-          args: Prisma.DevAttendanceCodeUpdateManyAndReturnArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload>[]
-        }
-        upsert: {
-          args: Prisma.DevAttendanceCodeUpsertArgs<ExtArgs>
-          result: runtime.Types.Utils.PayloadToResult<Prisma.$DevAttendanceCodePayload>
-        }
-        aggregate: {
-          args: Prisma.DevAttendanceCodeAggregateArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.AggregateDevAttendanceCode>
-        }
-        groupBy: {
-          args: Prisma.DevAttendanceCodeGroupByArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.DevAttendanceCodeGroupByOutputType>[]
-        }
-        count: {
-          args: Prisma.DevAttendanceCodeCountArgs<ExtArgs>
-          result: runtime.Types.Utils.Optional<Prisma.DevAttendanceCodeCountAggregateOutputType> | number
-        }
-      }
-    }
     Attendance: {
       payload: Prisma.$AttendancePayload<ExtArgs>
       fields: Prisma.AttendanceFieldRefs
@@ -956,20 +881,11 @@ export const AttendanceSessionScalarFieldEnum = {
 export type AttendanceSessionScalarFieldEnum = (typeof AttendanceSessionScalarFieldEnum)[keyof typeof AttendanceSessionScalarFieldEnum]
 
 
-export const DevAttendanceCodeScalarFieldEnum = {
-  sessionId: 'sessionId',
-  code: 'code'
-} as const
-
-export type DevAttendanceCodeScalarFieldEnum = (typeof DevAttendanceCodeScalarFieldEnum)[keyof typeof DevAttendanceCodeScalarFieldEnum]
-
-
 export const AttendanceScalarFieldEnum = {
   id: 'id',
   sessionId: 'sessionId',
   studentId: 'studentId',
-  markedAt: 'markedAt',
-  recordedByTeacherId: 'recordedByTeacherId'
+  markedAt: 'markedAt'
 } as const
 
 export type AttendanceScalarFieldEnum = (typeof AttendanceScalarFieldEnum)[keyof typeof AttendanceScalarFieldEnum]
@@ -1229,7 +1145,6 @@ export type GlobalOmitConfig = {
   class?: Prisma.ClassOmit
   classMembership?: Prisma.ClassMembershipOmit
   attendanceSession?: Prisma.AttendanceSessionOmit
-  devAttendanceCode?: Prisma.DevAttendanceCodeOmit
   attendance?: Prisma.AttendanceOmit
 }
 
