@@ -24,7 +24,7 @@
 - `POST /attendance/mark` student only `{ classId, sessionId, acousticToken, bleToken? }`
 - `GET /attendance/student/history` student only
 
-When `ATTENDIFY_TEACHER_DASHBOARD=1`:
+The teacher dashboard is available by default. Set `ATTENDIFY_TEACHER_DASHBOARD=0` to disable these routes:
 
 - `GET /teacher/attendance` opens the browser dashboard.
 - `GET /teacher/attendance/session` returns the signed-in teacher's active session and accepted student roster.

@@ -18,7 +18,7 @@ app.get('/health', (_req, res) => res.json({ ok: true, service: 'attendify-api',
 app.use('/auth', authRoutes);
 app.use('/classes', classRoutes);
 app.use('/attendance', attendanceRoutes);
-if (process.env.ATTENDIFY_TEACHER_DASHBOARD === '1') {
+if ((process.env.ATTENDIFY_TEACHER_DASHBOARD ?? '1') === '1') {
   app.use('/teacher/attendance', createTeacherAttendanceRouter());
 }
 
