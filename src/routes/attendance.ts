@@ -155,14 +155,34 @@ router.get('/classes/:classId/active', requireRole('STUDENT'), asyncHandler(asyn
   });
 }));
 
+router.post('/verify-ble', requireRole('STUDENT'), asyncHandler(async (req, res) => {
+  const { classId, bleToken } = z.object({
+    classId: z.string().min(1),
+    bleToken: z.string().trim().min(4)
+  }).parse(req.body);
+  const session = await prisma.attendanceSession.findFirst({
+    where: {
+      classId,
+      tokenHash: hashSessionToken(bleToken),
+      endedAt: null,
+      expiresAt: { gt: new Date() }
+    }
+  });
+  if (!session) return res.status(404).json({ message: 'No matching active BLE session' });
+  const membership = await prisma.classMembership.findUnique({
+    where: { classId_studentId: { classId, studentId: req.user!.id } }
+  });
+  if (membership?.status !== 'ACCEPTED') {
+    return res.status(403).json({ message: 'You must be accepted into this class first' });
+  }
+  res.json({ sessionId: session.id });
+}));
+
 router.post('/mark', requireRole('STUDENT'), asyncHandler(async (req, res) => {
   const input = z.object({
     classId: z.string().min(1),
-    bleToken: z.string().trim().min(4).optional(),
-    sessionId: z.string().min(1).optional(),
-    ultrasoundVerified: z.boolean().optional()
-  }).refine((data) => data.bleToken || data.sessionId, {
-    message: 'Either bleToken or sessionId is required'
+    bleToken: z.string().trim().min(4),
+    ultrasoundVerified: z.literal(true)
   }).parse(req.body);
 
   let session: (typeof prisma.attendanceSession extends { findFirst: (...args: any[]) => Promise<infer R> } ? R : any) = null;
@@ -177,16 +197,6 @@ router.post('/mark', requireRole('STUDENT'), asyncHandler(async (req, res) => {
           { tokenHash: hashSessionToken(cleanToken) }
         ],
         classId: input.classId
-      },
-      include: { class: true }
-    });
-  } else if (input.sessionId) {
-    session = await prisma.attendanceSession.findFirst({
-      where: {
-        id: input.sessionId,
-        classId: input.classId,
-        endedAt: null,
-        expiresAt: { gt: new Date() }
       },
       include: { class: true }
     });
