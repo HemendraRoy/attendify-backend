@@ -86,12 +86,14 @@ model DevAttendanceCode {
 }
 
 model Attendance {
-  id         String            @id @default(cuid())
-  sessionId  String
-  studentId  String
-  markedAt   DateTime          @default(now())
-  session    AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  student    User              @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
+  id                  String            @id @default(cuid())
+  sessionId           String
+  studentId           String
+  markedAt            DateTime          @default(now())
+  // Snapshot of the actor for browser entries. Null identifies entries made through the scan flow.
+  recordedByTeacherId String?
+  session             AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student             User              @relation("StudentAttendance", fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([sessionId, studentId])
   @@index([studentId, markedAt])
